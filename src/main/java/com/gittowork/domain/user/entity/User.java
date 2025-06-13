@@ -6,6 +6,7 @@ import com.gittowork.domain.firebase.entity.UserAlertLog;
 import com.gittowork.domain.interaction.entity.UserBlacklist;
 import com.gittowork.domain.interaction.entity.UserLikes;
 import com.gittowork.domain.interaction.entity.UserScraps;
+import com.gittowork.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -23,21 +24,20 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "user")
-public class User {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_id", nullable = false)
-    private Integer id;
+@Table(
+        name = "user",
+        indexes = {
+                @Index(name = "idx_user_github_name", columnList = "github_name")
+        }
+)
+public class User extends BaseEntity {
 
     @NotNull
     @Column(name = "github_id", nullable = false)
     private Integer githubId;
 
     @Size(max = 100)
-    @NotNull
-    @Column(name = "github_name", nullable = false, length = 100)
+    @Column(name = "github_name", nullable = false, length = 100, unique = true)
     private String githubName;
 
     @Size(max = 30)
@@ -63,13 +63,6 @@ public class User {
     @Column(name = "location", length = 100)
     private String location;
 
-    @NotNull
-    @Column(name = "create_dttm", nullable = false)
-    private LocalDateTime createDttm;
-
-    @Column(name = "update_dttm")
-    private LocalDateTime updateDttm;
-
     @Column(name = "privacy_consent_dttm")
     private LocalDateTime privacyConsentDttm;
 
@@ -87,12 +80,16 @@ public class User {
     @Column(name = "github_access_token")
     private String githubAccessToken;
 
-    @OneToOne(mappedBy = "user")
-    private UserGitInfo userGitInfo;
-
     @Size(max = 255)
     @Column(name = "FCM_token")
     private String fcmToken;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserState state;
+
+    @OneToOne(mappedBy = "user")
+    private UserGitInfo userGitInfo;
 
     @OneToMany(mappedBy = "user")
     private Set<CoverLetter> coverLetters = new LinkedHashSet<>();
@@ -111,16 +108,5 @@ public class User {
 
     @OneToMany(mappedBy = "user")
     private Set<UserScraps> userScraps = new LinkedHashSet<>();
-
-    public void setUserGitInfo(UserGitInfo userGitInfo) {
-        if (userGitInfo == null) {
-            if (this.userGitInfo != null) {
-                this.userGitInfo.setUser(null);
-            }
-        } else {
-            userGitInfo.setUser(this);
-        }
-        this.userGitInfo = userGitInfo;
-    }
 
 }

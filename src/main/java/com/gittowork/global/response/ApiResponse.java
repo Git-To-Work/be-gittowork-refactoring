@@ -17,6 +17,15 @@ public class ApiResponse<T> {
     private String message;
     private T results;
 
+
+    public static <T> ApiResponse<T> success() {
+        return ApiResponse.<T>builder()
+                .status(HttpStatus.OK.value())
+                .code(String.valueOf(HttpStatus.OK.value()))
+                .message(DEFAULT_SUCCESS_MESSAGE)
+                .build();
+    }
+
     public static <T> ApiResponse<T> success(T results) {
         return ApiResponse.<T>builder()
                 .status(HttpStatus.OK.value())

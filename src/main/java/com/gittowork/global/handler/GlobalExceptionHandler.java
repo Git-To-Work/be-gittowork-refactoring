@@ -8,6 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -189,7 +191,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(CoverLetterAnalysisException.class)
     public ResponseEntity<ErrorResponse> exceptionHandler(CoverLetterAnalysisException e) {
-        log.warn("Cover letter analysis not found: {}", e.getMessage());
+        log.warn("Cover letter analysis failed: {}", e.getMessage());
         String message = e.getMessage() == null ? ErrorCode.INTERNAL_SERVER_ERROR.getMessage() : e.getMessage();
         return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL_SERVER_ERROR.getCode(), message);
     }
@@ -225,6 +227,20 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(FortuneInfoNotFoundException.class)
     public ResponseEntity<ErrorResponse> exceptionHandler(FortuneInfoNotFoundException e) {
         log.warn("Fortune info not found: {}", e.getMessage());
+        String message = e.getMessage() == null ? ErrorCode.NOT_FOUND.getMessage() : e.getMessage();
+        return buildErrorResponse(HttpStatus.NOT_FOUND, ErrorCode.NOT_FOUND.getCode(), message);
+    }
+
+    @ExceptionHandler(UsernameNotFoundException.class)
+    public ResponseEntity<ErrorResponse> exceptionHandler(UsernameNotFoundException e) {
+        log.warn("Username not found: {}", e.getMessage());
+        String message = e.getMessage() == null ? ErrorCode.NOT_FOUND.getMessage() : e.getMessage();
+        return buildErrorResponse(HttpStatus.NOT_FOUND, ErrorCode.NOT_FOUND.getCode(), message);
+    }
+
+    @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
+    public ResponseEntity<ErrorResponse> exceptionHandler(AuthenticationCredentialsNotFoundException e) {
+        log.warn("Authentication credentials not found: {}", e.getMessage());
         String message = e.getMessage() == null ? ErrorCode.NOT_FOUND.getMessage() : e.getMessage();
         return buildErrorResponse(HttpStatus.NOT_FOUND, ErrorCode.NOT_FOUND.getCode(), message);
     }

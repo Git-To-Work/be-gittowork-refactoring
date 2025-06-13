@@ -1,5 +1,6 @@
 package com.gittowork.domain.user.entity;
 
+import com.gittowork.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -8,20 +9,14 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 
-@Entity
 @Getter
 @Setter
+@Entity
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 @Table(name = "user_git_info")
-public class UserGitInfo {
-
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_id", nullable = false)
-    private Integer id;
+public class UserGitInfo extends BaseEntity {
 
     @MapsId
     @OneToOne(fetch = FetchType.LAZY, optional = false)
@@ -44,12 +39,5 @@ public class UserGitInfo {
     @NotNull
     @Column(name = "followings", nullable = false)
     private Integer followings;
-
-    @NotNull
-    @Column(name = "create_dttm", nullable = false)
-    private LocalDateTime createDttm;
-
-    @Column(name = "update_dttm")
-    private LocalDateTime updateDttm;
 
 }

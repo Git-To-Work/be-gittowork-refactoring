@@ -10,6 +10,8 @@ import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Date;
 
 @Component
@@ -42,11 +44,25 @@ public class JwtUtil {
         refreshExpirationTime = 1000L * 60 * 60 * 24 * refreshTokenExpireDays;
     }
 
+    public String generateOnboardingToken(String username) {
+        Date now = new Date();
+        Date exp = new Date(now.getTime() + Duration.ofMinutes(10).toMillis());
+
+        return Jwts.builder()
+                .setSubject(username)
+                .setIssuedAt(now)
+                .setExpiration(exp)
+                .claim("role", "ROLE_ONBOARDING")
+                .signWith(jwtKey, SignatureAlgorithm.forName(jwtAlgorithm))
+                .compact();
+    }
+
     public String generateAccessToken(String username) {
         return Jwts.builder()
                 .setSubject(username)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + accessExpirationTime))
+                .claim("role", "ROL_USER")
                 .signWith(jwtKey, SignatureAlgorithm.forName(jwtAlgorithm))
                 .compact();
     }
@@ -56,6 +72,7 @@ public class JwtUtil {
                 .setSubject(username)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + refreshExpirationTime))
+                .claim("role", "ROL_USER")
                 .signWith(jwtKey, SignatureAlgorithm.forName(jwtAlgorithm))
                 .compact();
     }

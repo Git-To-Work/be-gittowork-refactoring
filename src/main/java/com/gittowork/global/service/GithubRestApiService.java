@@ -65,67 +65,7 @@ public class GithubRestApiService {
     }
 
     // ============================================================
-    // 1. 인증 및 사용자 정보 관련 메서드
-    // ============================================================
-
-    /**
-     * 1. 메서드 설명: GitHub OAuth 인증 과정에서 전달받은 code를 사용하여 access token 정보를 가져오는 API.
-     * 2. 로직:
-     *    - 요청 헤더에 JSON 형식의 응답을 수락하도록 설정하고, 요청 본문에 client_id, client_secret, redirect_uri, code를 추가한다.
-     *    - GitHub OAuth access token URL에 POST 요청을 보내 응답 상태 코드가 2xx가 아니면 예외를 발생시키고,
-     *      2xx인 경우 응답 본문이 null이면 빈 Map으로 처리한 후 access token 정보를 반환한다.
-     * 3. param: code - GitHub OAuth 인증 코드.
-     * 4. return: GitHub access token 정보를 포함한 Map 객체.
-     */
-    public Map<String, Object> getAccessToken(String code) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
-        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-        body.add("client_id", clientId);
-        body.add("client_secret", clientSecret);
-        body.add("redirect_uri", redirectUri);
-        body.add("code", code);
-        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
-        String accessTokenUrl = "https://github.com/login/oauth/access_token";
-        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                accessTokenUrl,
-                HttpMethod.POST,
-                request,
-                new ParameterizedTypeReference<Map<String, Object>>() {}
-        );
-        if (!response.getStatusCode().is2xxSuccessful()) {
-            throw new GithubRepositoryNotFoundException("Failed to get access token - HTTP " + response.getStatusCode());
-        }
-        Map<String, Object> bodyResponse = response.getBody();
-        return bodyResponse == null ? Collections.emptyMap() : bodyResponse;
-    }
-
-    /**
-     * 1. 메서드 설명: GitHub API를 호출하여 access token 기반으로 사용자 정보를 조회하는 API.
-     * 2. 로직:
-     *    - 요청 헤더에 bearer 토큰 방식으로 access token을 설정하고, JSON 형식의 응답을 수락하도록 설정한다.
-     *    - GitHub 사용자 정보 API에 GET 요청을 보내 응답 상태가 2xx가 아니면 예외를 발생시키며,
-     *      2xx인 경우 응답 본문이 null이면 빈 Map으로 처리한 후 사용자 정보를 반환한다.
-     * 3. param: accessToken - GitHub API 접근에 사용되는 access token.
-     * 4. return: GitHub 사용자 정보를 포함한 Map 객체.
-     */
-    public Map<String, Object> getUserInfo(String accessToken) {
-        HttpEntity<String> request = new HttpEntity<>(createHeaders(accessToken, MediaType.APPLICATION_JSON));
-        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                "https://api.github.com/user",
-                HttpMethod.GET,
-                request,
-                new ParameterizedTypeReference<Map<String, Object>>() {}
-        );
-        if (!response.getStatusCode().is2xxSuccessful()) {
-            throw new GithubRepositoryNotFoundException("Failed to get user info - HTTP " + response.getStatusCode());
-        }
-        Map<String, Object> bodyResponse = response.getBody();
-        return bodyResponse == null ? Collections.emptyMap() : bodyResponse;
-    }
-
-    // ============================================================
-    // 2. Repository 관련 메서드
+    // 1. Repository 관련 메서드
     // ============================================================
 
     /**
