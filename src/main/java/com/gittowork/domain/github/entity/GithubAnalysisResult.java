@@ -24,7 +24,7 @@ public class GithubAnalysisResult {
     @Id
     private String githubAnalysisResultId;
 
-    private long userId;
+    private Long userId;
     private LocalDateTime analysisDate;
     private String selectedRepositoriesId;
     private List<Repository> selectedRepositories;
@@ -32,9 +32,9 @@ public class GithubAnalysisResult {
 
     private List<RepositoryResult> repositories;
 
-    private int overallScore;
+    private Integer overallScore;
     private String primaryRole;
-    private int roleScores;
+    private Integer roleScores;
     private ActivityMetrics activityMetrics;
 
     private AIAnalysis aiAnalysis;

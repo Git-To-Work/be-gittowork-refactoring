@@ -10,12 +10,16 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 @Entity
+@Table(name = "analysis_status",
+        indexes = {
+                @Index(name = "idx_analysis_status_selected_repositories", columnList = "selected_repositories_id")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "analysis_status")
 public class AnalysisStatus {
 
     public enum Status {
@@ -35,12 +39,11 @@ public class AnalysisStatus {
 
     @Size(max = 255)
     @NotNull
-    @Column(name = "selected_repositories_id", nullable = false)
+    @Column(name = "selected_repositories_id", nullable = false, length = 255)
     private String selectedRepositoriesId;
 
-    @ColumnDefault("'pending'")
+    @ColumnDefault("'PENDING'")
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
     private Status status;
-
 }

@@ -5,9 +5,6 @@ import lombok.*;
 
 import java.util.List;
 
-/**
- * 전체 관심 분야 목록을 반환하는 응답 모델
- */
 @Getter
 @AllArgsConstructor
 @Builder

@@ -244,4 +244,11 @@ public class GlobalExceptionHandler {
         String message = e.getMessage() == null ? ErrorCode.NOT_FOUND.getMessage() : e.getMessage();
         return buildErrorResponse(HttpStatus.NOT_FOUND, ErrorCode.NOT_FOUND.getCode(), message);
     }
+
+    @ExceptionHandler(CoverLetterAnalysisAccessDenyException.class)
+    public ResponseEntity<ErrorResponse> exceptionHandler(CoverLetterAnalysisAccessDenyException e) {
+        log.warn("Cover letter analysis access deny: {}", e.getMessage());
+        String message = e.getMessage() == null ? ErrorCode.UNAUTHORIZED.getMessage() : e.getMessage();
+        return buildErrorResponse(HttpStatus.FORBIDDEN, ErrorCode.UNAUTHORIZED.getCode(), message);
+    }
 }

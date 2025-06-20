@@ -1,6 +1,7 @@
 package com.gittowork.domain.coverletter.entity;
 
 import com.gittowork.domain.user.entity.User;
+import com.gittowork.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -16,8 +17,13 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "cover_letter")
-public class CoverLetter {
+@Table(
+        name = "cover_letter",
+        indexes = {
+                @Index(name="idx_cover_letter_user_deleted", columnList = "user_id, deleted_dttm")
+        }
+)
+public class CoverLetter extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -40,8 +46,8 @@ public class CoverLetter {
     private String fileUrl;
 
     @NotNull
-    @Column(name = "create_dttm", nullable = false)
-    private LocalDateTime createDttm;
+    @Column(name = "deleted_dttm", nullable = false)
+    private LocalDateTime deletedDttm;
 
     @Size(max = 255)
     @NotNull

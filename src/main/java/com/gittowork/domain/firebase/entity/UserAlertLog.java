@@ -1,6 +1,7 @@
 package com.gittowork.domain.firebase.entity;
 
 import com.gittowork.domain.user.entity.User;
+import com.gittowork.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -15,7 +16,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @Table(name = "user_alert_log")
-public class UserAlertLog {
+public class UserAlertLog extends BaseEntity {
 
     @Id
     @Column(name = "alert_id", nullable = false)
@@ -36,10 +37,6 @@ public class UserAlertLog {
     @NotNull
     @Column(name = "message", nullable  = false)
     private String message;
-
-    @NotNull
-    @Column(name = "create_dttm", nullable = false)
-    private LocalDateTime createDttm;
 
     @Size(max = 255)
     @NotNull

@@ -1,6 +1,7 @@
 package com.gittowork.domain.coverletter.entity;
 
 import com.gittowork.domain.user.entity.User;
+import com.gittowork.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -14,7 +15,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @Table(name = "cover_letter_analysis")
-public class CoverLetterAnalysis {
+public class CoverLetterAnalysis extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -59,7 +60,7 @@ public class CoverLetterAnalysis {
     @Column(name = "creativity")
     private Integer creativity;
 
-    @Column(name = "create_dttm")
-    private LocalDateTime createDttm;
+    @Column(name = "deleted_dttm")
+    private LocalDateTime deletedDttm;
 
 }

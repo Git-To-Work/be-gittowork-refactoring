@@ -1,6 +1,6 @@
 package com.gittowork.domain.firebase.service;
 
-import com.gittowork.domain.firebase.dto.request.GetTokenRequest;
+import com.gittowork.domain.firebase.dto.request.TokenRequest;
 import com.gittowork.domain.firebase.entity.UserAlertLog;
 import com.gittowork.domain.firebase.repository.UserAlertLogRepository;
 import com.gittowork.domain.user.entity.User;
@@ -19,40 +19,40 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
+/**
+ * Firebase 관련 기능을 제공하는 서비스 클래스입니다.
+ * <p>
+ * - FCM 토큰 등록 및 업데이트
+ * - 커버레터 및 GitHub 분석 알림 메시지 전송
+ * - 알림 로그 저장
+ * </p>
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class FirebaseService {
 
     private final UserAlertLogRepository userAlertLogRepository;
     private final UserRepository userRepository;
 
     /**
-     * 1. 메서드 설명 :
-     *      - 현재 인증된 사용자의 FCM 토큰을 업데이트하여 저장합니다.
-     * 2. 로직:
-     *      - SecurityContextHolder에서 현재 인증된 사용자의 이름을 조회합니다.
-     *      - userRepository를 통해 해당 사용자를 조회하고, 존재하지 않으면 UserNotFoundException을 발생시킵니다.
-     *      - 사용자의 FCM 토큰을 업데이트하고 저장합니다.
-     *      - 성공 메시지가 포함된 MessageOnlyResponse 객체를 반환합니다.
-     * 3. param:
-     *      - getTokenRequest : 사용자의 FCM 토큰 정보를 포함하는 객체.
-     * 4. return:
-     *      - FCM 토큰이 성공적으로 저장되었음을 알리는 MessageOnlyResponse 객체.
-     * 5. 예외:
-     *      - UserNotFoundException : 사용자 조회에 실패할 경우 발생.
+     * 사용자의 FCM 토큰을 DB에 저장 또는 업데이트합니다.
+     *
+     * @param request 클라이언트로부터 전달된 FCM 토큰 정보 DTO
+     * @return 성공 메시지를 담은 {@link MessageOnlyResponse}
+     * @throws UserNotFoundException 인증된 사용자 정보를 찾을 수 없을 때 발생
      */
-    @Transactional
-    public MessageOnlyResponse insertFcmToken(GetTokenRequest getTokenRequest) {
+    public MessageOnlyResponse insertFcmToken(TokenRequest request) {
+        // 현재 인증된 사용자명 조회
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userName = authentication.getName();
 
-        User user = userRepository.findByGithubName(userName)
-                .orElseThrow(() -> new UserNotFoundException(userName));
-
-        user.setFcmToken(getTokenRequest.getFcmToken());
-
-        userRepository.save(user);
+        // FCM 토큰 업데이트 쿼리 실행
+        int updated = userRepository.updateFcmTokenByGithubName(userName, request.getFcmToken());
+        if (updated == 0) {
+            throw new UserNotFoundException(userName);
+        }
 
         return MessageOnlyResponse.builder()
                 .message("FCM 토큰이 성공적으로 저장되었습니다.")
@@ -60,25 +60,17 @@ public class FirebaseService {
     }
 
     /**
-     * 1. 메서드 설명 :
-     *      - 주어진 사용자에게 푸시 알림 메시지를 전송하고, 전송 내역을 사용자 알림 로그에 기록합니다.
-     * 2. 로직:
-     *      - FirebaseMessaging API를 사용하여 주어진 title과 message를 포함한 푸시 알림 메시지를 전송합니다.
-     *      - 전송된 메시지의 결과를 로그에 기록합니다.
-     *      - 전송 내역을 userAlertLogRepository에 저장하여 알림 로그를 남깁니다.
-     * 3. param:
-     *      - user : 메시지를 받을 대상 사용자.
-     *      - title : 푸시 알림의 제목.
-     *      - message : 푸시 알림의 본문 메시지.
-     *      - alertType : 알림의 유형을 나타내는 문자열.
-     * 4. return:
-     *      - 없음.
-     * 5. 예외:
-     *      - FirebaseMessagingException : 메시지 전송에 실패할 경우 발생.
+     * 커버레터 분석 완료 알림 메시지를 FCM으로 전송하고,
+     * 성공 시 알림 로그를 저장합니다.
+     *
+     * @param user 사용자 엔티티 (토큰 저장 정보 포함)
+     * @param title 알림 제목
+     * @param message 알림 본문 메시지
+     * @param alertType 알림 유형 식별자
+     * @throws FirebaseMessagingException FCM 전송 중 오류가 발생할 때 던져집니다.
      */
-    @Transactional
     public void sendCoverLetterMessage(User user, String title, String message, String alertType) throws FirebaseMessagingException {
-        String firebaseMessage = FirebaseMessaging.getInstance().send(
+        FirebaseMessaging.getInstance().send(
                 Message.builder()
                         .putData("title", title)
                         .putData("body", message)
@@ -92,16 +84,23 @@ public class FirebaseService {
                         .user(user)
                         .title(title)
                         .message(message)
-                        .createDttm(LocalDateTime.now())
                         .build()
         );
-
-        log.info("Firebase send message: {}", firebaseMessage);
     }
 
-    @Transactional
+    /**
+     * GitHub 분석 완료 알림 메시지를 FCM으로 전송하고,
+     * 성공 시 알림 로그를 저장합니다.
+     *
+     * @param user 사용자 엔티티 (토큰 저장 정보 포함)
+     * @param title 알림 제목
+     * @param message 알림 본문 메시지
+     * @param alertType 알림 유형 식별자
+     * @param selectedRepositoryId 분석된 GitHub 저장소 ID
+     * @throws FirebaseMessagingException FCM 전송 중 오류가 발생할 때 던져집니다.
+     */
     public void sendGithubAnalysisMessage(User user, String title, String message, String alertType, String selectedRepositoryId) throws FirebaseMessagingException {
-        String firebaseMessage = FirebaseMessaging.getInstance().send(
+        FirebaseMessaging.getInstance().send(
                 Message.builder()
                         .putData("title", title)
                         .putData("body", message)
@@ -116,11 +115,7 @@ public class FirebaseService {
                         .user(user)
                         .title(title)
                         .message(message)
-                        .createDttm(LocalDateTime.now())
                         .build()
         );
-
-        log.info("Firebase send message: {}", firebaseMessage);
     }
-
 }
