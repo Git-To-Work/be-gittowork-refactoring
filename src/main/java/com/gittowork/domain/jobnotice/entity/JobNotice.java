@@ -10,7 +10,12 @@ import org.hibernate.annotations.ColumnDefault;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "job_notice")
+@Table(
+        name = "job_notice",
+        indexes = {
+                @Index(name = "idx_job_notice_company_id", columnList = "company_id")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor

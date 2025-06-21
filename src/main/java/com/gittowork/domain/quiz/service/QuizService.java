@@ -3,7 +3,7 @@ package com.gittowork.domain.quiz.service;
 import com.gittowork.domain.quiz.dto.response.QuizResponse;
 import com.gittowork.domain.quiz.entity.Quiz;
 import com.gittowork.domain.quiz.repository.QuizRepository;
-import com.gittowork.global.exception.WrongQuizTypeException;
+import com.gittowork.global.exception.quiz.WrongQuizTypeException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -11,6 +11,10 @@ import org.springframework.util.StringUtils;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
+/**
+ * 퀴즈(문제) 관련 비즈니스 로직을 처리하는 서비스 클래스입니다.
+ * 개발자용 퀴즈를 랜덤으로 조회하여 {@link QuizResponse} 형태로 반환합니다.
+ */
 @Service
 @RequiredArgsConstructor
 public class QuizService {
@@ -18,33 +22,27 @@ public class QuizService {
     private final QuizRepository quizRepository;
 
     /**
-     * 1. 메서드 설명 :
-     *      지정한 카테고리(category)의 퀴즈 중 하나를 무작위로 반환합니다.
-     * 2. 로직:
-     *      - category가 비어 있으면 전체 퀴즈를 조회하고,
-     *      - 값이 있으면 해당 category의 퀴즈만 조회합니다.
-     *      - 퀴즈 리스트가 비어 있다면 WrongQuizTypeException 예외를 발생시킵니다.
-     *      - 퀴즈 리스트 중 하나를 무작위로 선택해 QuizResponse 형태로 반환합니다.
-     * 3. param:
-     *      -category 퀴즈 카테고리 (예: "CS", "CL", "FI", "SS"). null 또는 빈 문자열이면 전체 퀴즈 대상.
-     * 4. return:
-     *      -무작위로 선택된 퀴즈에 대한 QuizResponse 객체
-     * 5. 예외:
-     *      - WrongQuizTypeException 해당 카테고리의 퀴즈가 존재하지 않을 경우 발생
+     * 지정된 카테고리의 퀴즈를 랜덤으로 한 문제 조회합니다.
+     * 카테고리가 null 또는 빈 문자열일 경우 전체 퀴즈 목록에서 무작위로 선택합니다.
+     *
+     * @param category 퀴즈 카테고리 (예: "Java", "Spring");
+     *                 null 또는 빈 문자열이면 전체 퀴즈 대상
+     * @return 선택된 퀴즈 정보를 담은 {@link QuizResponse}
+     * @throws WrongQuizTypeException 조회된 퀴즈가 없을 경우 발생 (잘못된 카테고리)
      */
-
-    public QuizResponse getDeveloperQuiz(String category){
+    public QuizResponse getDeveloperQuiz(String category) {
         List<Quiz> quizzes;
-        if(!StringUtils.hasText(category)){
+        if (!StringUtils.hasText(category)) {
             quizzes = quizRepository.findAll();
-        }else {
+        } else {
             quizzes = quizRepository.findByCategory(category);
         }
 
-        if(quizzes.isEmpty()){
-            throw new WrongQuizTypeException("Wrong quiz category" + category);
+        if (quizzes.isEmpty()) {
+            throw new WrongQuizTypeException("Wrong quiz category: " + category);
         }
 
+        // 랜덤으로 하나 선택
         Quiz selected = quizzes.get(ThreadLocalRandom.current().nextInt(quizzes.size()));
 
         return QuizResponse.builder()

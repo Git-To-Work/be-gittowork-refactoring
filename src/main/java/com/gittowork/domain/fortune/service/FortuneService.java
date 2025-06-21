@@ -6,15 +6,14 @@ import com.gittowork.domain.fortune.dto.response.GetFortuneInfoResponse;
 import com.gittowork.domain.fortune.dto.response.GetTodayFortuneResponse;
 import com.gittowork.domain.fortune.entity.FortuneInfo;
 import com.gittowork.domain.fortune.model.SajuResult;
-import com.gittowork.domain.fortune.model.SolarTerm;
 import com.gittowork.domain.fortune.repository.FortuneInfoRepository;
 import com.gittowork.domain.user.entity.User;
 import com.gittowork.domain.user.repository.UserRepository;
-import com.gittowork.global.exception.FortuneInfoNotFoundException;
-import com.gittowork.global.exception.UserNotFoundException;
+import com.gittowork.global.exception.fortune.FortuneInfoNotFoundException;
+import com.gittowork.global.exception.auth.UserNotFoundException;
 import com.gittowork.global.facade.AuthenticationFacade;
-import com.gittowork.global.response.MessageOnlyResponse;
-import com.gittowork.global.service.GptService;
+import com.gittowork.global.dto.response.MessageOnlyResponse;
+import com.gittowork.global.service.openai.GptService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,10 +22,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
 
 /**
  * 운세 정보를 관리하는 비즈니스 로직을 담당하는 서비스 클래스입니다.

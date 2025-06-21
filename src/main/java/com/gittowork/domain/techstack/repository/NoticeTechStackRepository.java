@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface NoticeTechStackRepository extends JpaRepository<NoticeTechStack, NoticeTechStackId> {
-    List<NoticeTechStack> findByJobNoticeId(Integer jobNoticeId);
+    List<NoticeTechStack> findByJobNoticeIdIn(List<Integer> noticeIds);
 }

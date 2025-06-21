@@ -4,8 +4,8 @@ import com.gittowork.domain.github.dto.request.CreateAnalysisByRepositoryRequest
 import com.gittowork.domain.github.dto.request.SaveSelectedRepositoriesRequest;
 import com.gittowork.domain.github.dto.response.*;
 import com.gittowork.domain.github.service.GithubService;
-import com.gittowork.global.response.ApiResponse;
-import com.gittowork.global.response.MessageOnlyResponse;
+import com.gittowork.global.dto.response.ApiResponse;
+import com.gittowork.global.dto.response.MessageOnlyResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

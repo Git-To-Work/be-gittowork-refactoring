@@ -4,8 +4,8 @@ import com.gittowork.domain.coverletter.dto.response.GetCoverLetterAnalysisRespo
 import com.gittowork.domain.coverletter.dto.response.GetMyCoverLetterListResponse;
 import com.gittowork.domain.coverletter.dto.response.UploadCoverLetterResponse;
 import com.gittowork.domain.coverletter.sevice.CoverLetterService;
-import com.gittowork.global.response.ApiResponse;
-import com.gittowork.global.response.MessageOnlyResponse;
+import com.gittowork.global.dto.response.ApiResponse;
+import com.gittowork.global.dto.response.MessageOnlyResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

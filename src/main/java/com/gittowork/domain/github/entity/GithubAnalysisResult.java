@@ -24,7 +24,7 @@ public class GithubAnalysisResult {
     @Id
     private String githubAnalysisResultId;
 
-    private Long userId;
+    private Integer userId;
     private LocalDateTime analysisDate;
     private String selectedRepositoriesId;
     private List<Repository> selectedRepositories;

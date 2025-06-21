@@ -6,7 +6,12 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "user_likes")
+@Table(
+        name = "user_likes",
+        indexes = {
+                @Index(name = "idx_user_likes_user_id", columnList = "user_id")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor

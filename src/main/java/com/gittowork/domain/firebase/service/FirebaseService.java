@@ -5,8 +5,8 @@ import com.gittowork.domain.firebase.entity.UserAlertLog;
 import com.gittowork.domain.firebase.repository.UserAlertLogRepository;
 import com.gittowork.domain.user.entity.User;
 import com.gittowork.domain.user.repository.UserRepository;
-import com.gittowork.global.exception.UserNotFoundException;
-import com.gittowork.global.response.MessageOnlyResponse;
+import com.gittowork.global.exception.auth.UserNotFoundException;
+import com.gittowork.global.dto.response.MessageOnlyResponse;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
@@ -16,8 +16,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
 
 /**
  * Firebase 관련 기능을 제공하는 서비스 클래스입니다.

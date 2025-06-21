@@ -2,8 +2,8 @@ package com.gittowork.domain.firebase.controller;
 
 import com.gittowork.domain.firebase.dto.request.TokenRequest;
 import com.gittowork.domain.firebase.service.FirebaseService;
-import com.gittowork.global.response.ApiResponse;
-import com.gittowork.global.response.MessageOnlyResponse;
+import com.gittowork.global.dto.response.ApiResponse;
+import com.gittowork.global.dto.response.MessageOnlyResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

@@ -1,7 +1,7 @@
 package com.gittowork.domain.api.controller;
 
 import com.gittowork.domain.api.dto.response.ApiVersionResponse;
-import com.gittowork.global.response.ApiResponse;
+import com.gittowork.global.dto.response.ApiResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;

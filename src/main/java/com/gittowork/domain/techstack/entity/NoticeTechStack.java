@@ -5,7 +5,12 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "notice_tech_stack")
+@Table(
+        name = "notice_tech_stack",
+        indexes = {
+                @Index(name = "idx_notice_tech_stack_job_notice_id", columnList = "job_notice_id")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor

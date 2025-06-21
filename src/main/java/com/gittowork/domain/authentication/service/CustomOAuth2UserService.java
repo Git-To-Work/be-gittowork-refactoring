@@ -5,7 +5,6 @@ import com.gittowork.domain.user.entity.UserGitInfo;
 import com.gittowork.domain.user.entity.UserState;
 import com.gittowork.domain.user.repository.UserGitInfoRepository;
 import com.gittowork.domain.user.repository.UserRepository;
-import com.gittowork.global.service.RedisService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

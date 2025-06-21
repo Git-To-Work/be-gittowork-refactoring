@@ -2,7 +2,7 @@ package com.gittowork.domain.authentication.controller;
 
 import com.gittowork.domain.authentication.dto.response.AutoLogInGithubResponse;
 import com.gittowork.domain.authentication.service.GithubAuthenticationService;
-import com.gittowork.global.response.ApiResponse;
+import com.gittowork.global.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;

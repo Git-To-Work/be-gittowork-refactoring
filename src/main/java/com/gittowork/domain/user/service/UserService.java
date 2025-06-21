@@ -11,10 +11,10 @@ import com.gittowork.domain.user.dto.response.GetMyProfileResponse;
 
 import com.gittowork.domain.user.entity.User;
 import com.gittowork.domain.user.repository.UserRepository;
-import com.gittowork.global.exception.UserNotFoundException;
+import com.gittowork.global.exception.auth.UserNotFoundException;
 import com.gittowork.global.facade.AuthenticationFacade;
-import com.gittowork.global.response.MessageOnlyResponse;
-import com.gittowork.global.service.RedisService;
+import com.gittowork.global.dto.response.MessageOnlyResponse;
+import com.gittowork.global.service.cache.RedisService;
 import com.gittowork.global.utils.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -49,9 +49,9 @@ public class UserService {
      * <p>3. 비동기로 GitHub 리포지토리 분석을 수행하는 {@link com.gittowork.domain.github.service.GithubAnalysisService}를 호출합니다.
      *
      * @param insertProfileRequest 프로필 추가 정보를 담은 DTO
-     * @return {@link com.gittowork.global.response.MessageOnlyResponse}
+     * @return {@link MessageOnlyResponse}
      *         - message: \"추가 정보가 성공적으로 업데이트되었습니다.\"
-     * @throws com.gittowork.global.exception.UserNotFoundException
+     * @throws UserNotFoundException
      *         - 주어진 인증정보로 사용자를 찾을 수 없을 때
      */
     public MessageOnlyResponse insertProfile(InsertProfileRequest insertProfileRequest) {
@@ -83,7 +83,7 @@ public class UserService {
      * <p>3. 조회된 데이터를 {@link GetMyProfileResponse} DTO로 변환하여 반환합니다.
      *
      * @return GetMyProfileResponse 인증된 사용자의 프로필 정보
-     * @throws com.gittowork.global.exception.UserNotFoundException
+     * @throws UserNotFoundException
      *         - 인증 정보로 사용자를 찾지 못한 경우
      */
     @Transactional(readOnly = true)
@@ -111,16 +111,16 @@ public class UserService {
      *
      * <p>1. SecurityContext에서 인증된 사용자의 GitHub 로그인명(username)을 조회합니다.
      * <p>2. {@link UserRepository#findByGithubName(String)} 으로 {@link User} 엔티티를 조회합니다.
-     *     - 조회 실패 시 {@link com.gittowork.global.exception.UserNotFoundException}을 던집니다.
+     *     - 조회 실패 시 {@link UserNotFoundException}을 던집니다.
      * <p>3. 요청 DTO의 각 필드(name, birthDt, experience, phone)로 {@code User} 엔티티를 업데이트하고,
      *     Dirty-Checking에 의해 커밋 시점에 변경사항이 반영됩니다.
      * <p>4. 알림 수신 동의 여부(notificationAgreeDttm)는 기존 동의 상태와 신규 동의를 비교하여
      *     변경이 있을 때에만 {@link java.time.LocalDateTime#now()} 또는 {@code null}로 설정합니다.
-     * <p>5. 성공 시 메시지를 담은 {@link com.gittowork.global.response.MessageOnlyResponse}를 반환합니다.
+     * <p>5. 성공 시 메시지를 담은 {@link MessageOnlyResponse}를 반환합니다.
      *
      * @param updateProfileRequest 사용자 프로필 수정 정보를 담은 DTO
      * @return MessageOnlyResponse  - message: "추가 정보 수정 요청 처리 완료"
-     * @throws com.gittowork.global.exception.UserNotFoundException
+     * @throws UserNotFoundException
      *         지정된 GitHub 사용자명을 가진 {@code User}가 존재하지 않을 경우
      */
     @Transactional
@@ -151,15 +151,15 @@ public class UserService {
      *
      * <p>1. SecurityContext에서 인증된 사용자명(username)을 조회합니다.
      * <p>2. {@link UserRepository#findByGithubName(String)} 으로 {@link User} 엔티티를 조회합니다.
-     *     - 조회 실패 시 {@link com.gittowork.global.exception.UserNotFoundException} 발생
+     *     - 조회 실패 시 {@link UserNotFoundException} 발생
      * <p>3. 요청 DTO의 {@code List<Integer> interestsFields}를 JSON 배열 형태의 문자열로 직렬화하여
      *     {@code User.interestFields} 필드에 저장합니다.
      * <p>4. Dirty‐Checking 호출을 통해 변경사항을 DB에 반영합니다.
-     * <p>5. 처리 완료 메시지를 담은 {@link com.gittowork.global.response.MessageOnlyResponse}를 반환합니다.
+     * <p>5. 처리 완료 메시지를 담은 {@link MessageOnlyResponse}를 반환합니다.
      *
      * @param updateInterestsFieldsRequest 수정할 관심 분야의 ID 목록을 담은 DTO
      * @return MessageOnlyResponse  - message: "관심 비즈니스 분야 수정 처리 성공"
-     * @throws com.gittowork.global.exception.UserNotFoundException
+     * @throws UserNotFoundException
      *         지정된 GitHub 사용자명을 가진 {@code User}가 존재하지 않을 경우
      */
     public MessageOnlyResponse updateInterestFields(UpdateInterestsFieldsRequest updateInterestsFieldsRequest) {
@@ -184,7 +184,7 @@ public class UserService {
      *
      * <p>1. SecurityContext에서 인증된 사용자명(username)을 조회합니다.
      * <p>2. {@link UserRepository#findByGithubName(String)}를 통해 {@link User} 엔티티를 로드합니다.
-     *     - 조회 실패 시 {@link com.gittowork.global.exception.UserNotFoundException}이 발생합니다.
+     *     - 조회 실패 시 {@link UserNotFoundException}이 발생합니다.
      * <p>3. 로드된 User의 {@code interestFields} 문자열을
      *     {@link #parseInterestFieldIds(String)} 메서드를 사용해 {@code List<Integer>}로 파싱합니다.
      * <p>4. ID 리스트가 비어 있지 않으면 {@code FieldRepository#findAllById(Iterable<Integer>)}를
@@ -193,7 +193,7 @@ public class UserService {
      * <p>5. ID 리스트와 이름 리스트를 담은 {@link GetMyInterestFieldResponse} DTO를 빌더로 만들어 반환합니다.
      *
      * @return GetMyInterestFieldResponse 사용자 관심 분야 ID 및 이름 목록
-     * @throws com.gittowork.global.exception.UserNotFoundException
+     * @throws UserNotFoundException
      *         지정된 GitHub 로그인명에 해당하는 사용자가 존재하지 않을 경우
      */
     @Transactional(readOnly = true)
@@ -222,7 +222,7 @@ public class UserService {
      *
      * <p>1. SecurityContext에서 인증된 username을 조회합니다.
      * <p>2. 해당 username으로 {@link UserRepository#findByGithubName(String)}를 통해 User 엔티티를 로드합니다.
-     *     - 없으면 {@link com.gittowork.global.exception.UserNotFoundException}발생
+     *     - 없으면 {@link UserNotFoundException}발생
      * <p>3. User.deleteDttm 필드에 현재 시각을 설정하고, 필요하다면 상태(state)도 DELETED로 변경합니다.
      *     (Dirty-Checking으로 커밋 시점에 UPDATE 쿼리가 자동 실행됩니다.)
      * <p>4. Redis에 저장된 “RT:{username}” 리프레시 토큰 키를 삭제합니다.

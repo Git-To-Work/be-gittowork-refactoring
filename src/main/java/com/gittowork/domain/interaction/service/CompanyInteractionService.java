@@ -2,9 +2,7 @@ package com.gittowork.domain.interaction.service;
 
 import com.gittowork.domain.company.entity.Company;
 import com.gittowork.domain.company.repository.CompanyRepository;
-import com.gittowork.domain.interaction.dto.request.InteractionGetRequest;
 import com.gittowork.domain.interaction.dto.response.CompanyInteractionResponse;
-import com.gittowork.domain.interaction.dto.response.Pagination;
 import com.gittowork.domain.interaction.dto.response.UserInteractionResult;
 import com.gittowork.domain.interaction.entity.*;
 import com.gittowork.domain.interaction.repository.UserBlacklistRepository;
@@ -12,26 +10,34 @@ import com.gittowork.domain.interaction.repository.UserLikesRepository;
 import com.gittowork.domain.interaction.repository.UserScrapsRepository;
 import com.gittowork.domain.jobnotice.entity.JobNotice;
 import com.gittowork.domain.jobnotice.repository.JobNoticeRepository;
+import com.gittowork.domain.techstack.entity.NoticeTechStack;
 import com.gittowork.domain.techstack.repository.NoticeTechStackRepository;
 import com.gittowork.domain.user.entity.User;
 import com.gittowork.domain.user.repository.UserRepository;
-import com.gittowork.global.exception.CompanyNotFoundException;
-import com.gittowork.global.exception.InteractionDuplicateException;
-import com.gittowork.global.exception.UserInteractionNotFoundException;
-import com.gittowork.global.exception.UserNotFoundException;
-import com.gittowork.global.response.MessageOnlyResponse;
+import com.gittowork.global.exception.company.CompanyNotFoundException;
+import com.gittowork.global.exception.interaction.InteractionDuplicateException;
+import com.gittowork.global.exception.interaction.UserInteractionNotFoundException;
+import com.gittowork.global.exception.auth.UserNotFoundException;
+import com.gittowork.global.facade.AuthenticationFacade;
+import com.gittowork.global.dto.response.MessageOnlyResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+import static java.util.stream.Collectors.toList;
+
+/**
+ * 사용자와 회사 간 상호작용(스크랩, 좋아요, 블랙리스트) 비즈니스 로직을 처리하는 서비스 클래스입니다.
+ */
 @Service
 @RequiredArgsConstructor
 public class CompanyInteractionService {
@@ -43,145 +49,37 @@ public class CompanyInteractionService {
     private final UserBlacklistRepository userBlacklistRepository;
     private final JobNoticeRepository jobNoticeRepository;
     private final NoticeTechStackRepository noticeTechStackRepository;
+    private final AuthenticationFacade authenticationFacade;
 
     private static final String ALREADY_EXISTS = "Already exists";
 
     /**
-     * 1. 메서드 설명: 현재 인증된 사용자의 정보를 조회한다.
-     * 2. 로직:
-     *    - SecurityContext에서 인증 정보를 가져와 사용자를 식별한다.
-     *    - 사용자 Repository를 통해 사용자를 조회한다.
-     * 3. param: 없음
-     * 4. return: User 객체
-     */
-    private User getUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String githubName = authentication.getName();
-        return userRepository.findByGithubName(githubName)
-                .orElseThrow(() -> new UserNotFoundException(githubName));
-    }
-
-    /**
-     * 1. 메서드 설명: 주어진 회사 ID에 해당하는 회사 정보를 조회한다.
-     * 2. 로직:
-     *    - 회사 Repository를 통해 회사 정보를 조회한다.
-     * 3. param: companyId - 조회할 회사의 ID
-     * 4. return: Company 객체
-     */
-    private Company getCompanyById(Integer companyId) {
-        return companyRepository.findById(companyId)
-                .orElseThrow(() -> new CompanyNotFoundException("Company not found"));
-    }
-
-    /**
-     * 1. 메서드 설명: 상호작용 페이지 데이터를 기반으로 CompanyInteractionResponse 객체를 생성한다.
-     * 2. 로직:
-     *    - Page 내의 각 상호작용 엔티티에서 회사 정보를 추출한다.
-     *    - Pagination 정보를 생성한다.
-     *    - CompanyInteractionResponse 빌더를 통해 응답 객체를 생성한다.
-     * 3. param: interactionPage - 상호작용 데이터를 포함한 Page 객체
-     * 4. return: CompanyInteractionResponse 객체
-     */
-    private CompanyInteractionResponse buildCompanyInteractionResponse(Page<?> interactionPage) {
-        int userId = getUser().getId();
-
-        List<UserInteractionResult> results = interactionPage.stream()
-                .map(interaction -> {
-                    Company company;
-                    // 각 상호작용 타입에 따라 Company 객체 추출
-                    if (interaction instanceof UserScraps userScraps) {
-                        company = userScraps.getCompany();
-                    } else if (interaction instanceof UserLikes userLikes) {
-                        company = userLikes.getCompany();
-                    } else if (interaction instanceof UserBlacklist userBlacklist) {
-                        company = userBlacklist.getCompany();
-                    } else {
-                        throw new IllegalArgumentException("Unsupported interaction type");
-                    }
-
-                    // 스크랩 여부를 Repository를 통해 조회
-                    boolean scrapped = userScrapsRepository.existsById(new UserScrapsId(userId, company.getId()));
-
-                    // 1. fieldName: Company의 Field 엔티티에서 필드명 추출
-                    String fieldName = (company.getField() != null) ? company.getField().getFieldName() : null;
-
-                    // 2. jobNotices 조회: 해당 회사와 연결된 JobNotice들을 조회
-                    List<JobNotice> jobNotices = jobNoticeRepository.findByCompanyId(company.getId());
-
-                    // 3. techStacks: 각 JobNotice에 연결된 NoticeTechStack에서 TechStack 이름을 수집 (중복 제거)
-                    List<String> techStacks = jobNotices.stream()
-                            .flatMap(notice ->
-                                    noticeTechStackRepository.findByJobNoticeId(notice.getId()).stream()
-                                            .map(nt -> nt.getTechStack().getTechStackName())
-                            )
-                            .distinct()
-                            .toList();
-
-                    // 4. hasActiveJobNotice: 현재 시각 기준 deadline_dttm이 미래인 JobNotice가 존재하면 true
-                    boolean hasActiveJobNotice = jobNotices.stream()
-                            .anyMatch(notice -> notice.getDeadlineDttm().isAfter(LocalDateTime.now()));
-
-                    // UserInteractionResult DTO로 변환
-                    return UserInteractionResult.builder()
-                            .companyId(company.getId())
-                            .companyName(company.getCompanyName())
-                            .logo(company.getLogo())
-                            .fieldName(fieldName)
-                            .techStacks(techStacks)
-                            .hasActiveJobNotice(hasActiveJobNotice)
-                            .scrapped(scrapped)
-                            .build();
-                })
-                .toList();
-
-        Pagination pagination = new Pagination(
-                interactionPage.getNumber(),
-                interactionPage.getSize(),
-                interactionPage.getTotalPages(),
-                interactionPage.getTotalElements()
-        );
-
-        return CompanyInteractionResponse.builder()
-                .companies(results)
-                .pagination(pagination)
-                .build();
-    }
-
-
-    /**
-     * 1. 메서드 설명: 현재 인증된 사용자가 스크랩한 회사 목록을 조회하고, 페이징된 응답 객체를 생성한다.
-     * 2. 로직:
-     *    - 현재 인증된 사용자를 조회한다.
-     *    - 사용자의 스크랩 데이터를 페이징 처리하여 조회한다.
-     *    - 조회한 데이터를 CompanyInteractionResponse로 변환한다.
-     * 3. param: interactionGetRequest - 페이지 및 사이즈 정보를 포함한 요청 객체
-     * 4. return: ApiResponse 객체 (상태, 코드, 결과 및 메시지 포함)
+     * 현재 인증된 사용자가 스크랩한 회사 목록을 페이지 단위로 조회합니다.
+     *
+     * @param page 페이지 번호 (0부터 시작)
+     * @param size 페이지 크기
+     * @return 페이징된 회사 상호작용 응답 DTO
      */
     @Transactional(readOnly = true)
-    public CompanyInteractionResponse getScrapCompany(InteractionGetRequest interactionGetRequest) {
-        int userId = getUser().getId();
-        Pageable pageable = PageRequest.of(interactionGetRequest.getPage(), interactionGetRequest.getSize());
-        Page<UserScraps> userScraps = userScrapsRepository.findByUserId(userId, pageable);
-
-        return buildCompanyInteractionResponse(userScraps);
+    public CompanyInteractionResponse getScrapCompany(int page, int size) {
+        User user = loadCurrentUser();
+        Page<UserScraps> scrapsPage = userScrapsRepository.findByUserId(user.getId(), PageRequest.of(page, size));
+        return processInteractions(scrapsPage, user.getId());
     }
 
     /**
-     * 1. 메서드 설명: 현재 인증된 사용자가 스크랩한 회사 정보를 추가하고, 응답 객체를 생성한다.
-     * 2. 로직:
-     *    - 현재 인증된 사용자와 회사 정보를 조회한다.
-     *    - 중복 체크 후 스크랩 엔티티를 생성한다.
-     *    - 스크랩 엔티티를 저장하고 성공 응답을 반환한다.
-     * 3. param: interactionAddRequest - 회사 ID를 포함한 요청 객체
-     * 4. return: ApiResponse 객체 (상태 및 성공 메시지 포함)
+     * 현재 인증된 사용자가 특정 회사를 스크랩 목록에 추가합니다.
+     *
+     * @param companyId 스크랩할 회사 ID
+     * @return 처리 결과 메시지
      */
     @Transactional
-    public MessageOnlyResponse addScrapCompany(int companyId) {
-        User user = getUser();
+    public MessageOnlyResponse addScrapCompany(Integer companyId) {
+        User user = loadCurrentUser();
         Company company = getCompanyById(companyId);
         UserScrapsId userScrapsId = new UserScrapsId(user.getId(), company.getId());
 
-        if(userScrapsRepository.findById(userScrapsId).isPresent()){
+        if (userScrapsRepository.findById(userScrapsId).isPresent()) {
             throw new InteractionDuplicateException(ALREADY_EXISTS);
         }
 
@@ -196,17 +94,14 @@ public class CompanyInteractionService {
     }
 
     /**
-     * 1. 메서드 설명: 현재 인증된 사용자의 스크랩 목록에서 지정된 회사 정보를 삭제하고, 응답 객체를 생성한다.
-     * 2. 로직:
-     *    - 현재 인증된 사용자와 회사 정보를 조회한다.
-     *    - 해당 스크랩 엔티티가 존재하는지 확인한다.
-     *    - 스크랩 엔티티를 삭제하고 성공 응답을 반환한다.
-     * 3. param: interactionDeleteRequest - 삭제할 회사 ID를 포함한 요청 객체
-     * 4. return: ApiResponse 객체 (상태 및 성공 메시지 포함)
+     * 현재 인증된 사용자의 스크랩 목록에서 특정 회사를 삭제합니다.
+     *
+     * @param companyId 삭제할 회사 ID
+     * @return 처리 결과 메시지
      */
     @Transactional
     public MessageOnlyResponse deleteScrapCompany(int companyId) {
-        User user = getUser();
+        User user = loadCurrentUser();
         Company company = getCompanyById(companyId);
         UserScrapsId userScrapsId = new UserScrapsId(user.getId(), company.getId());
 
@@ -218,35 +113,28 @@ public class CompanyInteractionService {
     }
 
     /**
-     * 1. 메서드 설명: 현재 인증된 사용자가 좋아요한 회사 목록을 조회하고, 페이징된 응답 객체를 생성한다.
-     * 2. 로직:
-     *    - 현재 인증된 사용자를 조회한다.
-     *    - 사용자의 좋아요 데이터를 페이징 처리하여 조회한다.
-     *    - 조회한 데이터를 CompanyInteractionResponse로 변환한다.
-     * 3. param: interactionGetRequest - 페이지 및 사이즈 정보를 포함한 요청 객체
-     * 4. return: ApiResponse 객체 (상태, 코드, 결과 및 메시지 포함)
+     * 현재 인증된 사용자가 좋아요한 회사 목록을 페이지 단위로 조회합니다.
+     *
+     * @param page 페이지 번호 (0부터 시작)
+     * @param size 페이지 크기
+     * @return 페이징된 회사 상호작용 응답 DTO
      */
     @Transactional(readOnly = true)
-    public CompanyInteractionResponse getMyLikeCompany(InteractionGetRequest interactionGetRequest) {
-        int userId = getUser().getId();
-        Pageable pageable = PageRequest.of(interactionGetRequest.getPage(), interactionGetRequest.getSize());
-        Page<UserLikes> userLikes = userLikesRepository.findByUserId(userId, pageable);
-
-        return buildCompanyInteractionResponse(userLikes);
+    public CompanyInteractionResponse getMyLikeCompany(int page, int size) {
+        User user = loadCurrentUser();
+        Page<UserLikes> likesPage = userLikesRepository.findByUserId(user.getId(), PageRequest.of(page, size));
+        return processInteractions(likesPage, user.getId());
     }
 
     /**
-     * 1. 메서드 설명: 현재 인증된 사용자가 좋아요한 회사 정보를 추가하고, 응답 객체를 생성한다.
-     * 2. 로직:
-     *    - 현재 인증된 사용자와 회사 정보를 조회한다.
-     *    - 중복 체크 후 좋아요 엔티티를 생성한다.
-     *    - 좋아요 엔티티를 저장하고 성공 응답을 반환한다.
-     * 3. param: interactionAddRequest - 회사 ID를 포함한 요청 객체
-     * 4. return: ApiResponse 객체 (상태 및 성공 메시지 포함)
+     * 현재 인증된 사용자가 특정 회사를 좋아요 목록에 추가합니다.
+     *
+     * @param companyId 좋아요할 회사 ID
+     * @return 처리 결과 메시지
      */
     @Transactional
     public MessageOnlyResponse addLikeCompany(int companyId) {
-        User user = getUser();
+        User user = loadCurrentUser();
         Company company = getCompanyById(companyId);
         UserLikesId userLikesId = new UserLikesId(user.getId(), company.getId());
 
@@ -265,17 +153,14 @@ public class CompanyInteractionService {
     }
 
     /**
-     * 1. 메서드 설명: 현재 인증된 사용자의 좋아요 목록에서 지정된 회사 정보를 삭제하고, 응답 객체를 생성한다.
-     * 2. 로직:
-     *    - 현재 인증된 사용자와 회사 정보를 조회한다.
-     *    - 해당 좋아요 엔티티가 존재하는지 확인한다.
-     *    - 좋아요 엔티티를 삭제하고 성공 응답을 반환한다.
-     * 3. param: interactionDeleteRequest - 삭제할 회사 ID를 포함한 요청 객체
-     * 4. return: ApiResponse 객체 (상태 및 성공 메시지 포함)
+     * 현재 인증된 사용자의 좋아요 목록에서 특정 회사를 삭제합니다.
+     *
+     * @param companyId 삭제할 회사 ID
+     * @return 처리 결과 메시지
      */
     @Transactional
     public MessageOnlyResponse deleteLikeCompany(int companyId) {
-        User user = getUser();
+        User user = loadCurrentUser();
         Company company = getCompanyById(companyId);
         UserLikesId userLikesId = new UserLikesId(user.getId(), company.getId());
 
@@ -287,35 +172,28 @@ public class CompanyInteractionService {
     }
 
     /**
-     * 1. 메서드 설명: 현재 인증된 사용자가 블랙리스트에 등록한 회사 목록을 조회하고, 페이징된 응답 객체를 생성한다.
-     * 2. 로직:
-     *    - 현재 인증된 사용자를 조회한다.
-     *    - 사용자의 블랙리스트 데이터를 페이징 처리하여 조회한다.
-     *    - 조회한 데이터를 CompanyInteractionResponse로 변환한다.
-     * 3. param: interactionGetRequest - 페이지 및 사이즈 정보를 포함한 요청 객체
-     * 4. return: ApiResponse 객체 (상태, 코드, 결과 및 메시지 포함)
+     * 현재 인증된 사용자가 블랙리스트에 등록한 회사 목록을 페이지 단위로 조회합니다.
+     *
+     * @param page 페이지 번호 (0부터 시작)
+     * @param size 페이지 크기
+     * @return 페이징된 회사 상호작용 응답 DTO
      */
     @Transactional(readOnly = true)
-    public CompanyInteractionResponse getMyBlackList(InteractionGetRequest interactionGetRequest) {
-        int userId = getUser().getId();
-        Pageable pageable = PageRequest.of(interactionGetRequest.getPage(), interactionGetRequest.getSize());
-        Page<UserBlacklist> userBlacklist = userBlacklistRepository.findByUserId(userId, pageable);
-
-        return buildCompanyInteractionResponse(userBlacklist);
+    public CompanyInteractionResponse getMyBlackList(int page, int size) {
+        User user = loadCurrentUser();
+        Page<UserBlacklist> blacklistPage = userBlacklistRepository.findByUserId(user.getId(), PageRequest.of(page, size));
+        return processInteractions(blacklistPage, user.getId());
     }
 
     /**
-     * 1. 메서드 설명: 현재 인증된 사용자가 블랙리스트에 등록한 회사 정보를 추가하고, 응답 객체를 생성한다.
-     * 2. 로직:
-     *    - 현재 인증된 사용자와 회사 정보를 조회한다.
-     *    - 중복 체크 후 블랙리스트 엔티티를 생성한다.
-     *    - 블랙리스트 엔티티를 저장하고 성공 응답을 반환한다.
-     * 3. param: interactionAddRequest - 회사 ID를 포함한 요청 객체
-     * 4. return: ApiResponse 객체 (상태 및 성공 메시지 포함)
+     * 현재 인증된 사용자가 특정 회사를 블랙리스트에 추가합니다.
+     *
+     * @param companyId 블랙리스트에 추가할 회사 ID
+     * @return 처리 결과 메시지
      */
     @Transactional
     public MessageOnlyResponse addMyBlackList(int companyId) {
-        User user = getUser();
+        User user = loadCurrentUser();
         Company company = getCompanyById(companyId);
         UserBlacklistId userBlacklistId = new UserBlacklistId(user.getId(), company.getId());
 
@@ -337,17 +215,14 @@ public class CompanyInteractionService {
     }
 
     /**
-     * 1. 메서드 설명: 현재 인증된 사용자의 블랙리스트 목록에서 지정된 회사 정보를 삭제하고, 응답 객체를 생성한다.
-     * 2. 로직:
-     *    - 현재 인증된 사용자와 회사 정보를 조회한다.
-     *    - 해당 블랙리스트 엔티티가 존재하는지 확인한다.
-     *    - 블랙리스트 엔티티를 삭제하고 성공 응답을 반환한다.
-     * 3. param: interactionDeleteRequest - 삭제할 회사 ID를 포함한 요청 객체
-     * 4. return: ApiResponse 객체 (상태 및 성공 메시지 포함)
+     * 현재 인증된 사용자의 블랙리스트에서 특정 회사를 삭제합니다.
+     *
+     * @param companyId 삭제할 회사 ID
+     * @return 처리 결과 메시지
      */
     @Transactional
     public MessageOnlyResponse deleteMyBlackList(int companyId) {
-        User user = getUser();
+        User user = loadCurrentUser();
         Company company = getCompanyById(companyId);
         UserBlacklistId userBlacklistId = new UserBlacklistId(user.getId(), company.getId());
 
@@ -356,5 +231,100 @@ public class CompanyInteractionService {
 
         userBlacklistRepository.delete(userBlacklist);
         return MessageOnlyResponse.builder().message("차단 기업 삭제 요청 처리 완료").build();
+    }
+
+    /**
+     * interactionPage와 userId를 바탕으로 공통 결과 생성 로직을 수행합니다.
+     *
+     * @param interactionPage 스크랩/좋아요/블랙리스트 페이지
+     * @param userId 사용자 ID
+     * @return 회사 상호작용 응답 DTO
+     */
+    private CompanyInteractionResponse processInteractions(Page<?> interactionPage, int userId) {
+        List<Integer> companyIds = interactionPage.stream()
+                .map(this::getCompany)
+                .map(Company::getId)
+                .toList();
+
+        List<JobNotice> allNotices = jobNoticeRepository.findByCompanyIdIn(companyIds);
+        Map<Integer, List<JobNotice>> noticesByCompany = allNotices.stream()
+                .collect(Collectors.groupingBy(n -> n.getCompany().getId()));
+
+        List<Integer> noticeIds = allNotices.stream().map(JobNotice::getId).toList();
+        List<NoticeTechStack> allStacks = noticeTechStackRepository.findByJobNoticeIdIn(noticeIds);
+        Map<Integer, List<String>> stacksByNotice = allStacks.stream()
+                .collect(Collectors.groupingBy(
+                        nt -> nt.getJobNotice().getId(),
+                        Collectors.mapping(nt -> nt.getTechStack().getTechStackName(), toList())
+                ));
+
+        Set<Integer> scrapedSet = new HashSet<>(
+                userScrapsRepository.findCompanyIdsByUserId(userId, companyIds)
+        );
+
+        List<UserInteractionResult> results = interactionPage.stream().map(inter -> {
+            Company c = getCompany(inter);
+            List<JobNotice> compNotices = noticesByCompany.getOrDefault(c.getId(), List.of());
+            boolean hasActive = compNotices.stream()
+                    .anyMatch(n -> n.getDeadlineDttm().isAfter(LocalDateTime.now()));
+
+            List<String> techs = compNotices.stream()
+                    .flatMap(n -> stacksByNotice.getOrDefault(n.getId(), List.of()).stream())
+                    .distinct()
+                    .toList();
+
+            return UserInteractionResult.builder()
+                    .companyId(c.getId())
+                    .companyName(c.getCompanyName())
+                    .logo(c.getLogo())
+                    .fieldName(c.getField() != null ? c.getField().getFieldName() : null)
+                    .techStacks(techs)
+                    .hasActiveJobNotice(hasActive)
+                    .scrapped(scrapedSet.contains(c.getId()))
+                    .build();
+        }).toList();
+
+        return CompanyInteractionResponse.builder()
+                .companies(results)
+                .currentPage(interactionPage.getNumber())
+                .pageSize(interactionPage.getSize())
+                .totalPages(interactionPage.getTotalPages())
+                .totalItems(interactionPage.getTotalElements())
+                .build();
+    }
+
+    /**
+     * interaction 타입에 따라 Company 객체를 반환합니다.
+     *
+     * @param interaction UserScraps, UserLikes, UserBlacklist 중 하나
+     * @return 상호작용된 Company
+     */
+    private Company getCompany(Object interaction) {
+        if (interaction instanceof UserScraps us) return us.getCompany();
+        if (interaction instanceof UserLikes ul) return ul.getCompany();
+        if (interaction instanceof UserBlacklist ub) return ub.getCompany();
+        throw new IllegalArgumentException("Unsupported interaction type");
+    }
+
+    /**
+     * 현재 인증된 사용자를 조회합니다.
+     *
+     * @return User 엔티티
+     */
+    private User loadCurrentUser() {
+        String username = authenticationFacade.getCurrentUsername();
+        return userRepository.findByGithubName(username)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+    }
+
+    /**
+     * 회사 ID로 Company 엔티티를 조회합니다.
+     *
+     * @param companyId 회사 ID
+     * @return Company 엔티티
+     */
+    private Company getCompanyById(Integer companyId) {
+        return companyRepository.findById(companyId)
+                .orElseThrow(() -> new CompanyNotFoundException("Company not found"));
     }
 }

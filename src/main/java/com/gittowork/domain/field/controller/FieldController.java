@@ -2,7 +2,7 @@ package com.gittowork.domain.field.controller;
 
 import com.gittowork.domain.field.dto.response.GetInterestFieldsResponse;
 import com.gittowork.domain.field.service.FieldService;
-import com.gittowork.global.response.ApiResponse;
+import com.gittowork.global.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.media.Content;
